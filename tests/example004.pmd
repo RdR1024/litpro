@@ -1,0 +1,20 @@
+---
+title: Example markdown output for Pandoc
+author: RdR
+date: 2019-07-07
+
+---
+
+# Introduction
+This is example markdown text that can be handled by Pandoc
+
+%% mycode "Example code"
+person(1,lily).
+person(2,john).
+
+%%
+
+The code shown in Listing $\ref{mycode}$ is a simple Prolog program.
+The name of person 1 is `person(1,X),write(X)`.
+
+The end.

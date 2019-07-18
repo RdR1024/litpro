@@ -1,0 +1,20 @@
+---
+title: Example markdown output for Pandoc
+author: RdR
+date: 2019-07-07
+
+---
+
+# Introduction
+This is example markdown text that can be handled by Pandoc
+
+%% mycode tag1 tag2
+
+main :- hello( world ).
+hello(X):- write('**'),write('hello '), write(X), writeln('**').
+
+:- main.
+
+%%
+
+The code shown in Listing $\ref{mycode}$ is a simple Prolog program.

@@ -1,0 +1,40 @@
+---
+title: Example 2 markdown output for Pandoc
+author: RdR
+date: 2019-07-07
+
+---
+
+# Introduction
+This is example markdown text that can be handled by Pandoc
+
+%% main core
+
+main :- hello( world ).
+hello(X):- write('hello '), writeln(X).
+
+:- main.
+
+%%
+
+The code shown in Listing \ref{main} is a simple Prolog program.
+
+%% ex1 example
+
+goodbye(X):- write('goodbye '), writeln(X).
+
+:- goodbye('world ').
+
+%%
+
+The code in Listing \ref{ex1} is another program.
+
+%% ex2 example
+
+hello_again(X):- write('I have returned '), writeln(X).
+
+:- goodbye('everyone ').
+
+%%
+
+And another code chunk in Listing \ref{ex2}.
