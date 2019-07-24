@@ -263,6 +263,59 @@ write_dottag_4lit(A):- write('.'), write(A), write(' ').
 whitespace_4lit --> [C], {C=9;C=32}, whitespace_4lit.     % 9=tab, 32=space
 whitespace_4lit --> {}.
 
+% filepath grammar
+filepath_4lit(Path) -->
+    drive_4lit(Drive),
+    fpath_4lit(MorePath),
+    {   concat_atom(Drive,MorePath,Path)
+    }.
+
+% drive designator grammar
+drive_4lit(Drive) -->
+    [C], {letter_4lit(C)}, [58],!,  % 58=':'
+    {char_code(Ch,C), atom_concat(Ch,':',Drive)}.  
+drive_4lit('') --> {}.
+
+% filepath ending in filename
+fpath_4lit(Path) -->
+    fpath_dottedslash_4lit(Dotslash),
+    fpath_filename_4lit(Name),
+    fpath_4lit(MorePath),
+    {   concat_atom(Dotslash,Name,Front),
+        concat_atom(Front,MorePath,Path)
+    }.
+
+% path dot-[dot]-slash notation
+fpath_dottedslash_4lit(Dotslash) -->
+    [46],               % 46='.'
+    fpath_dot_4lit(D),
+    [47],!,             % 47='/'
+    {   atom_concat('.',D,Dotted),
+        atom_concat(Dotted,'/',Dotslash)
+    }.
+fpath_dottedslash_4lit('/') --> [47],!.
+fpath_dottedslash_4lit('') --> {}.
+
+fpath_dot_4lit('.') --> [46],!.     % 46='.'
+fpath_dot_4lit('') --> {}.
+
+fpath_filename_4lit(Filename) -->
+    fpath_dottedslash_4lit(DS),
+    [A], {alphanum_4lit(A)},
+    fpath_filenametail_4lit(N),!,
+    {   char_code(C,A),
+        atom_concat(DS,C,Pre),
+        atom_concat(Pre,N,Filename)
+    }.
+fpath_filename_4lit('') --> {}.
+fpath_filenametail_4lit(Filename) -->
+    [P], {alphanumpunc_4lit(P)},
+    fpath_filename_4lit(N),!,
+    {   char_code(Pc,P),
+        atom_concat(Pc,N,Filename)
+    }.
+fpath_filenametail_4lit('') --> {}.
+
 % label_4lit is a sequence of a letter, followed by alphanumerics or underscores
 label_4lit(Label) --> [A], {letter_4lit(A)}, label_tail_4lit(As), {atom_chars(Label,[A|As])},!.
 label_tail_4lit([A|As]) --> [A], {alpha_num_4lit(A)}, label_tail_4lit(As).
@@ -273,7 +326,10 @@ uppercase_4lit(C):- C > 64, C < 91.      %  'A' <= C <= 'Z'
 letter_4lit(C) :- (lowercase_4lit(C); uppercase_4lit(C)),!.
 digit_4lit(C):-  C > 47, C < 58.         %  '0' <= C <= '9'
 alphanum_4lit(C):- (digit_4lit(C); letter_4lit(C)),!.
-alpha_num_4lit(C):- (C=95; alphanum_4lit(C)),!.   % '_'=95
+alpha_num_4lit(C):- (C=95; C=45; alphanum_4lit(C)),!.   % '_'=95, '-'=45
+namepunc_4lit(C):- (C=95; C=45; C=46),!.    % 95='_', 45='-', 46='.'
+alphanumpunc_4lit(C):- (namepunc_4lit(C); alphanum_4lit(C)),!. 
+
 
 % caption_4lit is any text inside double quotes
 caption_4lit(Caption) --> [34], caption_text_4lit(Cap), [34], {atom_chars(Caption,Cap)},!.  % 34='"'

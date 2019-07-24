@@ -14,6 +14,7 @@ Ensure that you have SWI Prolog and pandoc installed.  Then, download lit.pro (o
 
         swipl -o lit -g main_4lit -c lit.pro
 
+Note that the lit.pro file in the main repo directory is the development version.  For the latest stable release, go to the [releases](https://github.com/RdR1024/litpro/releases) tab and download the highest numbered release (e.g. [v1.0.0](https://github.com/RdR1024/litpro/archive/v1.0.0.zip)).
 
 # Use
 Assuming that you've written a literate Prolog document called "hello.pmd", turn it into a pdf with the following:
