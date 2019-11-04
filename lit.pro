@@ -116,7 +116,7 @@ lit_4lit(Infile, Outfile, CodeOnly, Partags,Postproc):-
     (ground(Infile) -> 
         (   open(Infile, read, In,[]),
             current_output(Serr),       % user current output for errors and warnings
-            with_output_to(Out,process_lines_4lit(Serr,In,CodeOnly,Partags,text,1)),
+            with_output_to(Out,process_lines_4lit(Serr,In,CodeOnly,_,Partags,text,1)),
             close(Out),
             close(In),
         
@@ -131,27 +131,35 @@ lit_4lit(Infile, Outfile, CodeOnly, Partags,Postproc):-
         print_arghelp_4lit
     ),!.
 
-%! process_lines_4lit(+In:handle,+CodeOnly:atom,+Partags:list,+Lnum:integer) is det.
+%! process_lines_4lit(+In:handle,+CodeOnly:atom,+Codefile:atom,+Partags:list,+Lnum:integer) is det.
 %   Process: read line and process according to type of line and state of processing
-process_lines_4lit(Serr,In,CodeOnly,Partags,State,Lnum):-
+process_lines_4lit(Serr,In,CodeOnly,[Codefile,CF],Partags,State,Lnum):-
     (\+ at_end_of_stream(In)),
     read_line_to_codes(In, Codes),
-    aline_4lit(Serr,CodeOnly,Partags,Lnum,Codes,State,Newstate),!,
+    aline_4lit(Serr,CodeOnly,[Codefile,CF],Partags,Lnum,Codes,State,Newstate),!,
+    (   ( is_stream(Codefile), atom(CF), CF=eof) ->
+            (   close(Codefile),
+                NewCodefile = NewCodefile,
+                NewCF = NewCF
+            );
+            (   NewCodefile = Codefile, 
+                NewCF=CF
+            )
+    ),
     Lnext is Lnum + 1,
-    process_lines_4lit(Serr,In,CodeOnly,Partags,Newstate,Lnext).
-process_lines_4lit(_Serr,_In,_CodeOnly,_Partags,_State,_Lnum).
+    process_lines_4lit(Serr,In,CodeOnly,[NewCodefile,NewCF],Partags,Newstate,Lnext).
+process_lines_4lit(_Serr,_In,_CodeOnly,_Codefile,_Partags,_State,_Lnum).
 
 %! aline_4lit(+CodeOnly:atom,+Lnum:integer,+Chars:list,+State:atom,-Newstate:atom) is semidet.
-%   process state transition between different line types:
-%   any --(codeblock_start_4lit)--> code     list and evaluate
-%   any --(codeblock_start_4lit)--> skip     don't list and don't evaluate
-%   any --(codeblock_start_4lit)--> noeval   list but don't evaluate
-%   any --(codeblock_start_4lit)--> nolist   evaluated but don't list
-%   any --(codeblock_end)--> text
-%   S --(other)--> S
+%   process state transition between different line types. Any state can go via the 
+%   codeblock_start into code, skip, noeval, nolist or text. Otherwise remain in the state.
 
-aline_4lit(Serr,CodeOnly,Partags,_Lnum,Codes,_,Outstate):-        % codeblock start
-    codeblock_start_4lit(CodeOnly,Partags,Outstate,Codes,Rest),
+% codeblock start
+aline_4lit(Serr,CodeOnly,[Codefile,_],Partags,_Lnum,Codes,_,Outstate):-        
+    codeblock_start_4lit(CodeOnly,Label,Partags,Outstate,Codes,Rest),
+    (   (CodeOnly,\+labelname_4lit(Label,Label), access_file(Label,append)) -> 
+            open(Label,append,Codefile); true  
+    ),
     (   (length(Rest,L), L>0) ->
             (   write(Serr,'Line '), 
                 write(Serr,'. Unknown syntax ignored: '),
@@ -159,27 +167,53 @@ aline_4lit(Serr,CodeOnly,Partags,_Lnum,Codes,_,Outstate):-        % codeblock st
                 write(Serr,S)
             ); true
     ). 
-aline_4lit(_Serr,false,_Partags,_Lnum,Codes,text,text):-         % text line
+
+% text line
+aline_4lit(_Serr,false,_Codefile,_Partags,_Lnum,Codes,text,text):-         
     \+codeblock_intro_4lit(Codes,_),
     eval_textline_4lit(Cs,Codes,_),
     writef('%s\n',[Cs]).
-aline_4lit(_Serr,_CodeOnly,_Partags,_Lnum,Codes,skip,skip):-     % skipped code line
+
+% skipped code line
+aline_4lit(_Serr,_CodeOnly,_Codefile,_Partags,_Lnum,Codes,skip,skip):-     
     \+codeblock_intro_4lit(Codes,_).
-aline_4lit(_Serr,_CodeOnly,_Partags,Lnum,Codes,nolist,nolist):-  % not listed codeline
+
+% not listed codeline
+aline_4lit(_Serr,_CodeOnly,_Codefile,_Partags,Lnum,Codes,nolist,nolist):-  
     \+codeblock_intro_4lit(Codes,_),
     append_codeline_4lit(Lnum,Codes).
-aline_4lit(_Serr,_CodeOnly,_Partags,Lnum,Codes,code,code):-      % listed & evaluated codeline
+
+% listed & evaluated codeline
+aline_4lit(_Serr,CodeOnly,[Codefile,_],_Partags,Lnum,Codes,code,code):-    
     \+codeblock_intro_4lit(Codes,_),
-    writef('%s\n',[Codes]),
+    (   (CodeOnly, is_stream(Codefile)) -> 
+            with_output_to(Codefile,writef('%s\n',[Codes]));
+            writef('%s\n',[Codes])
+    ),
     append_codeline_4lit(Lnum,Codes).
-aline_4lit(_Serr,_CodeOnly,_Partags,_Lnum,Codes,noeval,noeval):- % not evaluated codeline
+
+% not evaluated codeline
+aline_4lit(_Serr,CodeOnly,[Codefile,_],_Partags,_Lnum,Codes,noeval,noeval):- 
     \+codeblock_intro_4lit(Codes,_),
-    writef('%s\n',[Codes]).
-aline_4lit(_Serr,CodeOnly,_Partags,_Lnum,Codes,Instate,text):-   % end of codeblock -- evaluate if needed
+    (   (CodeOnly,is_stream(Codefile)) -> 
+            with_output_to(Codefile,writef('%s\n',[Codes]));
+            writef('%s\n',[Codes])
+    ).
+
+% end of codeblock -- evaluate if needed
+aline_4lit(_Serr,CodeOnly,[Codefile,CF],_Partags,_Lnum,Codes,Instate,text):-   
     codeblock_intro_4lit(Codes,[]),
-    ( (\+CodeOnly, Instate\=skip, Instate\=nolist) -> writef('\n~~~\n\n'); true),
-    ( (Instate\=skip, Instate\=noeval) -> eval_codeblock_4lit; true).
-aline_4lit(_Serr,_CodeOnly,_Partags,_Lnum,_Codes,State,State).
+    ( CodeOnly ->
+        (   is_stream(Codefile) -> ( close(Codefile), CF=eof); true            
+        );
+        (   ((Instate\=skip, Instate\=nolist) -> writef('\n~~~\n\n'); true),
+            ((Instate\=skip, Instate\=noeval) -> eval_codeblock_4lit; true),
+            Codefile = Codefile, CF=CF
+        )
+    ).
+
+% no more lines
+aline_4lit(_Serr,_CodeOnly,_Codefile,_Partags,_Lnum,_Codes,State,State).
 
 
 % evaluate an inline clause
@@ -230,16 +264,17 @@ codeblock_intro_4lit --> [37,37], whitespace_4lit.        % 37='%'
 % grammar for line that starts a codeblock
 % Grammar: %% mylabel ["mycaption"] [ tag1[, tag2[, tag3...]]]
 % Reserved tags: nolist noeval skip nonum
-codeblock_start_4lit(CodeOnly,Partags,Outstate) --> 
+codeblock_start_4lit(CodeOnly,Label,Partags,Outstate) --> 
     codeblock_intro_4lit,
-    label_4lit(Label),
+    filepath_4lit(Label),
     whitespace_4lit,
     caption_4lit(Caption),
     whitespace_4lit, 
     tags_4lit(Tags),
     {   codeblock_state_4lit(Partags,Label,Tags,Outstate), 
         ( (\+CodeOnly, Outstate \= skip, Outstate \= nolist) ->
-            (   writef('~~~{ .prolog label=%w caption="%w" numbers=',[Label,Caption]),
+            (   labelname_4lit(Label,Name),
+                writef('~~~{ .prolog label=%w caption="%w" numbers=',[Name,Caption]),
                 ( (\+member(nonum,Tags),\+member(nonum,Partags)) -> write('left ');write('none ')),
                 maplist(write_dottag_4lit,Tags),
                 writeln('}')
@@ -266,60 +301,53 @@ whitespace_4lit --> {}.
 % filepath grammar
 filepath_4lit(Path) -->
     drive_4lit(Drive),
+    [46],!,                % 46='.'
+    dotslash_4lit(D),
     fpath_4lit(MorePath),
-    {   concat_atom(Drive,MorePath,Path)
+    {   append([Drive,[46|D],MorePath],P),
+        atom_codes(Path,P)
+    }.
+filepath_4lit(Path) -->
+    drive_4lit(Drive),
+    [C], {alphanumpunc_4lit(C)},!,        % 46='.'
+    fpath_4lit(MorePath),
+    {   append([Drive,[C|MorePath]],P),
+        atom_codes(Path,P)
     }.
 
 % drive designator grammar
-drive_4lit(Drive) -->
-    [C], {letter_4lit(C)}, [58],!,  % 58=':'
-    {char_code(Ch,C), atom_concat(Ch,':',Drive)}.  
-drive_4lit('') --> {}.
-
-% filepath ending in filename
-fpath_4lit(Path) -->
-    fpath_dottedslash_4lit(Dotslash),
-    fpath_filename_4lit(Name),
-    fpath_4lit(MorePath),
-    {   concat_atom(Dotslash,Name,Front),
-        concat_atom(Front,MorePath,Path)
-    }.
+drive_4lit([C,58]) -->
+    [C], {letter_4lit(C)}, [58],!.  % 58=':'
+drive_4lit([]) --> {}.
 
 % path dot-[dot]-slash notation
-fpath_dottedslash_4lit(Dotslash) -->
-    [46],               % 46='.'
-    fpath_dot_4lit(D),
-    [47],!,             % 47='/'
-    {   atom_concat('.',D,Dotted),
-        atom_concat(Dotted,'/',Dotslash)
-    }.
-fpath_dottedslash_4lit('/') --> [47],!.
-fpath_dottedslash_4lit('') --> {}.
+dotslash_4lit([46,47]) --> [46,47],!.    % 46='.'
+dotslash_4lit([47]) --> [47],!.         % 47='/'
+dotslash_4lit([]) --> {}.
 
-fpath_dot_4lit('.') --> [46],!.     % 46='.'
-fpath_dot_4lit('') --> {}.
+% recursive tail of filepath
+fpath_4lit([A|Path]) -->
+    [A], { alpha_num_4lit(A)},!,
+    fpath_4lit(Path).
+fpath_4lit(Path) -->
+    [46], !,
+    dotslash_4lit(D),
+    fpath_4lit(Morepath),!,
+    { append([[46|D],Morepath],Path) }.
+fpath_4lit([C|Morepath]) -->
+    [C], {alphanumpunc_4lit(C)},!,
+    fpath_4lit(Morepath).
+fpath_4lit([]) --> {}.
 
-fpath_filename_4lit(Filename) -->
-    fpath_dottedslash_4lit(DS),
-    [A], {alphanum_4lit(A)},
-    fpath_filenametail_4lit(N),!,
-    {   char_code(C,A),
-        atom_concat(DS,C,Pre),
-        atom_concat(Pre,N,Filename)
-    }.
-fpath_filename_4lit('') --> {}.
-fpath_filenametail_4lit(Filename) -->
-    [P], {alphanumpunc_4lit(P)},
-    fpath_filename_4lit(N),!,
-    {   char_code(Pc,P),
-        atom_concat(Pc,N,Filename)
-    }.
-fpath_filenametail_4lit('') --> {}.
+
+% label grammar is a filepath grammar
+labelname_4lit(Label,Name):- file_base_name(Label,Base), file_name_extension(Name,_,Base).
 
 % label_4lit is a sequence of a letter, followed by alphanumerics or underscores
 label_4lit(Label) --> [A], {letter_4lit(A)}, label_tail_4lit(As), {atom_chars(Label,[A|As])},!.
 label_tail_4lit([A|As]) --> [A], {alpha_num_4lit(A)}, label_tail_4lit(As).
 label_tail_4lit([]) --> {}.
+
 
 lowercase_4lit(C):- C > 96, C < 123.     %  'a' <= C <= 'z'
 uppercase_4lit(C):- C > 64, C < 91.      %  'A' <= C <= 'Z'
@@ -327,7 +355,7 @@ letter_4lit(C) :- (lowercase_4lit(C); uppercase_4lit(C)),!.
 digit_4lit(C):-  C > 47, C < 58.         %  '0' <= C <= '9'
 alphanum_4lit(C):- (digit_4lit(C); letter_4lit(C)),!.
 alpha_num_4lit(C):- (C=95; C=45; alphanum_4lit(C)),!.   % '_'=95, '-'=45
-namepunc_4lit(C):- (C=95; C=45; C=46),!.    % 95='_', 45='-', 46='.'
+namepunc_4lit(C):- (C=95; C=45; C=46; C=47),!.    % 95='_', 45='-', 46='.', 47='/'
 alphanumpunc_4lit(C):- (namepunc_4lit(C); alphanum_4lit(C)),!. 
 
 

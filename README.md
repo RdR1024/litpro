@@ -23,7 +23,7 @@ Assuming that you've written a literate Prolog document called "hello.pmd", turn
 
 (If you compiled on Windows, then you don't need the initial ./ )
 
-For further details on use and the code, see the `litdoc.pdf` file in the doc folder.
+For further details on use and the code, see the `litdoc.pdf` file in the doc folder. Also see the examples in the examples folder.
 
 
 # Pandoc
