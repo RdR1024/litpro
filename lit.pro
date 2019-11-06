@@ -204,7 +204,6 @@ aline_4lit(_Serr,CodeOnly,[Codefile,_],_Partags,_Lnum,Codes,noeval,noeval):-
 aline_4lit(_Serr,CodeOnly,[Codefile,CF],_Partags,_Lnum,Codes,Instate,text):-   
     codeblock_intro_4lit(Codes,[]),
     ( CodeOnly ->
-%        (   is_stream(Codefile) -> ( close(Codefile), CF=eof); true            
         (   is_stream(Codefile) -> ( CF=eof); true            
     );
         (   ((Instate\=skip, Instate\=nolist) -> writef('\n~~~\n\n'); true),
