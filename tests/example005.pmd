@@ -25,3 +25,12 @@ use the base name of the path (i.e. the name without path or extension).
 
 For example, refer to Listing \ref{mycode}.
 
+%% tests/mycode2.pro "A Second Example code fragment" tag2 noeval
+
+person(3,jack).
+person(4,jane).
+
+%%
+
+Listing \ref{mycode2} is a second code fragment in a file of its own.
+
