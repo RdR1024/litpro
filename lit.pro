@@ -18,8 +18,11 @@ main_4lit:-
     halt.
 main_4lit:- halt(1).
 
-args_4lit(Args):-  
-    current_prolog_flag(os_argv,[_,_,_,_|Args]),!.
+args_4lit(Args):-
+    (   current_prolog_flag(windows,true) ->
+            current_prolog_flag(os_argv,[_|Args]);
+            current_prolog_flag(os_argv,[_,_,_,_|Args])
+    ),!.  
 args_4lit([]):-!.
 
 %! submain(-Args:list) is det.
@@ -54,7 +57,7 @@ argline_4lit(Infile,Outfile,CodeOnly,Tags,Postproc) -->
     {    not(access_file(Outfile,write)) -> throw('Error: cannot access output file');! },
     !, arglinetail_4lit(Infile, Outfile,CodeOnly,Tags,Postproc).
 argline_4lit(Infile,Outfile,CodeOnly,Tags,Postproc) -->
-    [Infile],
+    [Infile], 
     {    not(access_file(Infile,read)) -> throw('Error: cannot access input file');! },
     !, arglinetail_4lit(Infile, Outfile,CodeOnly,Tags,Postproc).
 arglinetail_4lit(_,_,_,_,_,[],[]):-!.
@@ -82,7 +85,7 @@ print_arghelp_4lit:-
     writeln('Literate Prolog programs using markdown files.'),
     writeln('usage: lit [-x ] [-p "post processing command"] [-t tag1[, tag2, ..., tagn] ] [-o outputfile] inputfile'),
     writeln('-x  will extract code only into outputfile'),
-    writeln('-p "..." is the postprocessing command. default="pandoc --listing -o %w.pdf %w.md", where %w is extensionless filename'),
+    writeln('-p "..." is the postprocessing command. default="pandoc --pdf-engine=lualatex --listing -o %w.pdf %w.md", where %w is extensionless filename'),
     writeln('-t tag1[, tag2, ..., tagn]  will only process code blocks with any of these tags'),
     writeln('-o  specify outputfile name. Default is inputfile, but with .md extension, or .pro in case of -x option.'),
     !.
@@ -97,8 +100,8 @@ lit_4lit(Infile, Outfile, CodeOnly, Partags,Postproc):-
     ( \+ground(Partags) -> Partags=[]; true),
     ( \+ground(Postproc) -> 
         (   member(nonum,Partags) -> 
-                Postproc='pandoc -o %w.pdf %w.md'; 
-                Postproc='pandoc --listing -o %w.pdf %w.md'
+                Postproc='pandoc --pdf-engine=lualatex -o %w.pdf %w.md'; 
+                Postproc='pandoc --pdf-engine=lualatex --listing -o %w.pdf %w.md'
         ); true
     ),
     ( \+ground(Outfile) -> 
