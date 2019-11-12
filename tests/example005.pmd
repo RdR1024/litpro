@@ -15,6 +15,7 @@ code will be extracted into that file, instead of the default file.  In other wo
 can use this approach to put code into distinct files.
 
 %% tests/mycode.pro "Example code" tag1 tag2
+:- dynamic person/2.
 person(1,lily).
 person(2,john).
 
@@ -23,7 +24,14 @@ person(2,john).
 Note that if you want to refer to the code listing in the text, then
 use the base name of the path (i.e. the name without path or extension).
 
-For example, refer to Listing \ref{mycode}.
+For example, refer to Listing \ref{mycode}.  Now some code for the main file.
+
+%% maincode1 "Main Code"
+:- dynamic foo/2.
+foo(1,2).
+foo(3,4).
+
+%%
 
 %% tests/mycode2.pro "A Second Example code fragment" tag2 noeval
 
@@ -33,4 +41,15 @@ person(4,jane).
 %%
 
 Listing \ref{mycode2} is a second code fragment in a file of its own.
+
+And some more main code.
+
+%% maincode2 "Main code too"
+
+foo_(5,6).
+foo_(7,8).
+
+%%
+
+The end.
 

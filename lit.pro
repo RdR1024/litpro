@@ -160,8 +160,8 @@ process_lines_4lit(_Serr,_In,_CodeOnly,_Codefile,_Partags,_State,_Lnum).
 % codeblock start
 aline_4lit(Serr,CodeOnly,[Codefile,_],Partags,_Lnum,Codes,_,Outstate):-        
     codeblock_start_4lit(CodeOnly,Label,Partags,Outstate,Codes,Rest),
-    (   (CodeOnly,\+labelname_4lit(Label,Label), access_file(Label,append)) -> 
-            open(Label,append,Codefile); true  
+    (   (CodeOnly,\+labelname_4lit(Label,Label), access_file(Label,write)) -> 
+            open(Label,write,Codefile); true  
     ),
     (   (length(Rest,L), L>0) ->
             (   write(Serr,'Line '), 
